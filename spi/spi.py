@@ -1,11 +1,20 @@
 # Successive parabolic interpolation 17/03/20
 """
+TODO:
+Refactor code so the function I choose to plot with is decoupled from the
+animation code.
+
 Continuing ideas:
 * try printing the error on screen
 * try different functions, and save some animations
 * try adding a zoom with each iteration
 Interesting it looks like the interpolating parabola tends to the 2nd order
 taylor polynomial about the minimum
+
+There seems to be some numerical error in the parabola minimum for small
+intervals, making it fall outside of the interval quite often. Perhaps we
+can log the intervals and get a log version of the algorithm which has no
+numerical issues
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -99,19 +108,33 @@ if __name__ == "__main__":
     ys = f(xs)
     fLine, = ax.plot(xs, ys, lw=2, color="blue")
 
-    bracketPts, = ax.plot([], [], 'x', color="red")
-    parabolaLine, = ax.plot([], [], '--', color="red")
+    plt.legend(["$cos(x)$"])
+    plt.xlabel("$x$")
+    plt.ylabel("$y$")
+    plt.title("Successive Parabolic Interpolation for Local Minimum")
+
+    bracketPts, = ax.plot([], [], 'x', color="red", markersize=10)
+    parabolaLine, = ax.plot([], [], '--', color="gold")
     zLine, = ax.plot([], [], '--', color="gold")
     zPt, = ax.plot([], [], 'o', color="gold")
+
+    y = max(fa, fc)
+    bracketLine, = ax.plot([0, 0], [y, y], '.-', color="red")
+    bracketInfo = ax.text(0, y, '', horizontalalignment="center",
+                          verticalalignment="bottom", color="red")
+
+    iterNum = -1
 
     def init():
         bracketPts.set_data([], [])
         parabolaLine.set_data([], [])
         zLine.set_data([], [])
         zPt.set_data([], [])
-        return bracketPts, parabolaLine
+        return bracketPts, parabolaLine, zLine, zPt, bracketLine, bracketInfo
 
     def animate(i):
+        global iterNum
+        iterNum += 1
         state, p, z, fz = next(states)
         a, b, c, fa, fb, fc = state
         bracketPts.set_data([a, b, c], [fa, fb, fc])
@@ -120,9 +143,18 @@ if __name__ == "__main__":
         approxfz = evalParabola(p, z)
         zLine.set_data([z, z], [approxfz, fz])
         zPt.set_data([z], [fz])
-        return bracketPts, parabolaLine, zLine, zPt
+
+
+        bracketLine.set_xdata([a, c])#, [y, y])
+        bracketInfo.set_x((a+c)/2)
+        bText = ("iteration: {}\n".format(iterNum) +
+                r"argmin $\in " + "({:.8f}, {:.8f})$\n".format(a, c) +
+                r"error $\leq" + "{:.2E}$".format(abs(c-a)))
+
+        bracketInfo.set_text(bText)
+        return bracketPts, parabolaLine, zLine, zPt, bracketLine, bracketInfo
 
     anim = animation.FuncAnimation(fig, animate, init_func=init,
                                    frames=30, interval=3000, blit=True)
-    anim.save('basic_animation.mp4', fps=1/3, extra_args=['-vcodec', 'libx264'])
+    #anim.save('cos3.mp4', fps=1/3, extra_args=['-vcodec', 'libx264'])
     plt.show()
